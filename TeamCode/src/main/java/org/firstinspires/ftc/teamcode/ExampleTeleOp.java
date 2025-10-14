@@ -1,23 +1,24 @@
-package org.firstinspires.ftc.teamcode.pedroPathing;
+package org.firstinspires.ftc.teamcode;
 import com.bylazar.configurables.annotations.Configurable;
 import com.bylazar.telemetry.PanelsTelemetry;
 import com.bylazar.telemetry.TelemetryManager;
 import com.pedropathing.follower.Follower;
-import com.pedropathing.geometry.BezierLine;
+import com.pedropathing.geometry.BezierCurve;
 import com.pedropathing.geometry.Pose;
-import com.pedropathing.paths.HeadingInterpolator;
 import com.pedropathing.paths.Path;
 import com.pedropathing.paths.PathChain;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
-
+import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
 import java.util.function.Supplier;
 
 @Configurable
 @TeleOp
 public class ExampleTeleOp extends OpMode {
     private Follower follower;
-    public static Pose startingPose; //See ExampleAuto to understand how to use this
+    public static Pose startingPose = new Pose(72.08561236623068,11.814506539833536,Math.toRadians(90)); //See ExampleAuto to understand how to use this
+
+    //public static Pose startingPose = new Pose(72.08561236623068,11.814506539833536,Math.toRadians(37)); //See ExampleAuto to understand how to use this
     private boolean automatedDrive;
     private Supplier<PathChain> pathChain;
     private TelemetryManager telemetryM;
@@ -32,8 +33,12 @@ public class ExampleTeleOp extends OpMode {
         telemetryM = PanelsTelemetry.INSTANCE.getTelemetry();
 
         pathChain = () -> follower.pathBuilder() //Lazy Curve Generation
-                .addPath(new Path(new BezierLine(follower::getPose, new Pose(45, 98))))
-                .setHeadingInterpolation(HeadingInterpolator.linearFromPoint(follower::getHeading, Math.toRadians(45), 0.8))
+                .addPath(new Path(new BezierCurve(
+                        new Pose(72.086, 11.815),
+                        new Pose(72.086, 103.591),
+                        new Pose(26.369, 116.090)
+                )))
+                .setLinearHeadingInterpolation(Math.toRadians(90), Math.toRadians(140))
                 .build();
     }
 
@@ -42,7 +47,8 @@ public class ExampleTeleOp extends OpMode {
         //The parameter controls whether the Follower should use break mode on the motors (using it is recommended).
         //In order to use float mode, add .useBrakeModeInTeleOp(true); to your Drivetrain Constants in Constant.java (for Mecanum)
         //If you don't pass anything in, it uses the default (false)
-        follower.startTeleopDrive();
+        follower.startTeleopDrive(true);
+
     }
 
     @Override
@@ -100,6 +106,7 @@ public class ExampleTeleOp extends OpMode {
         }
 
         telemetryM.debug("position", follower.getPose());
+        telemetryM.debug("heading", follower.getHeading());
         telemetryM.debug("velocity", follower.getVelocity());
         telemetryM.debug("automatedDrive", automatedDrive);
     }
