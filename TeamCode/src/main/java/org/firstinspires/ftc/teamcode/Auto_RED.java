@@ -7,7 +7,6 @@ import com.pedropathing.follower.Follower;
 import com.pedropathing.geometry.BezierCurve;
 import com.pedropathing.geometry.BezierLine;
 import com.pedropathing.geometry.Pose;
-import com.pedropathing.paths.PathBuilder;
 import com.pedropathing.paths.PathChain;
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
@@ -16,13 +15,12 @@ import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
 
 import com.pedropathing.util.Timer;
 import com.qualcomm.robotcore.hardware.DcMotor;
+import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
-
-import java.util.function.Supplier;
 
 @Configurable
 @Autonomous
-public class ExampleAuto extends LinearOpMode {
+public class Auto_RED extends LinearOpMode {
     private Timer pathTimer, actionTimer, opmodeTimer;
     private int pathState = 0;
     private Follower follower;
@@ -43,13 +41,25 @@ public class ExampleAuto extends LinearOpMode {
     public static PathChain line7;
     public static PathChain line8;
 
+    public static PathChain shoot1;
+    public static PathChain shoot2;
+    public static PathChain shoot3;
+
+    public static int DELAY = 500;
+
+    private int ticksPerRev = 28; // 28 / gear_ratio
+
     private DcMotor intakeMotor;
+    private DcMotorEx shooterMotor;
+    private ShooterSubsystem shooter;
 
     @Override
     public void runOpMode() throws InterruptedException {
         pathTimer = new Timer();
         opmodeTimer = new Timer();
         intakeMotor = hardwareMap.dcMotor.get("intake");
+        shooterMotor = hardwareMap.get(DcMotorEx.class,"shooter");
+        shooter = new ShooterSubsystem(shooterMotor, ticksPerRev);
         intakeMotor.setDirection(DcMotorSimple.Direction.FORWARD);
         intakeMotor.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
 
@@ -58,6 +68,26 @@ public class ExampleAuto extends LinearOpMode {
         follower.setStartingPose(startingPose);
         follower.update();
         telemetryM = PanelsTelemetry.INSTANCE.getTelemetry();
+
+        shoot1 = follower.pathBuilder().addPath(
+                        // Path 1
+                        new BezierLine(startingPose, new Pose(72.299, 72.150))
+                )
+                .setLinearHeadingInterpolation(Math.toRadians(90), Math.toRadians(45)).build();
+
+        shoot2 = follower.pathBuilder().addPath(
+                        // Path 2
+                        new BezierLine(new Pose(72.299, 72.150), new Pose(79.784, 80.083))
+                )
+                .setLinearHeadingInterpolation(Math.toRadians(45), Math.toRadians(45)).build();
+        shoot3 = follower.pathBuilder()
+                .addPath(
+                        // Path 3
+                        new BezierLine(new Pose(79.784, 80.083), new Pose(95.501, 95.501))
+                )
+                .setLinearHeadingInterpolation(Math.toRadians(45), Math.toRadians(45))
+                .build();
+
         line1 = follower.pathBuilder()
                 .addPath(
                         // Path 1
@@ -112,9 +142,8 @@ public class ExampleAuto extends LinearOpMode {
                         // Path 8
                         new BezierCurve(
                                 new Pose(130.009, 36.000),
-                                new Pose(85.649, 11.261),
-                                new Pose(84.455, 67.393),
-                                new Pose(38.218, 33.441)
+
+                                new Pose(132, 12)
                         )
                 )
                 .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(0))
@@ -165,11 +194,36 @@ public class ExampleAuto extends LinearOpMode {
 
     }
 
+    public void goAndShoot(Pose start) {
+        shoot1 = follower.pathBuilder().addPath(
+                        // Path 1
+                        new BezierLine(start, new Pose(72.299, 72.150))
+                )
+                .setLinearHeadingInterpolation(Math.toRadians(start.getHeading()), Math.toRadians(45)).build();
+        shooter.setShooterTargetRPM(5000);
+        follower.followPath(shoot1, 0.7, true);
+        while (follower.isBusy() && opModeIsActive()) {
+            follower.update();
+        }
+        sleep(DELAY);
+        follower.followPath(shoot2, true);
+        while (follower.isBusy() && opModeIsActive()) {
+            follower.update();
+        }
+        sleep(DELAY);
+        follower.followPath(shoot3, true);
+        while (follower.isBusy() && opModeIsActive())  {
+            follower.update();
+        }
+        shooter.setShooterTargetRPM(0);
+    }
+
     public void autonomousPathUpdate() {
         // line 3 5 7
         switch (pathState) {
             case 0:
-                follower.followPath(line1, true);
+                //follower.followPath(line1, true);
+                goAndShoot(follower.getPose());
                 setPathState(1);
                 break;
             case 1:
@@ -198,7 +252,9 @@ public class ExampleAuto extends LinearOpMode {
             case 3:
                 if (!follower.isBusy()) {
                     intakeMotor.setPower(0);
-                    follower.followPath(line4, true);
+                    goAndShoot(follower.getPose());
+
+//                    follower.followPath(line4, true);
                     setPathState(4);
                 }
                 break;
@@ -222,7 +278,8 @@ public class ExampleAuto extends LinearOpMode {
                     /* Score Preload */
                     /* Since this is a pathChain, we can have Pedro hold the end point while we are grabbing the sample */
                     intakeMotor.setPower(0);
-                    follower.followPath(line6, 0.3, true);
+                    goAndShoot(follower.getPose());
+                    //follower.followPath(line6, 0.3, true);
                     setPathState(6);
                 }
                 break;
@@ -244,7 +301,9 @@ public class ExampleAuto extends LinearOpMode {
                     /* Score Preload */
                     /* Since this is a pathChain, we can have Pedro hold the end point while we are grabbing the sample */
                     intakeMotor.setPower(0);
+                    goAndShoot(follower.getPose());
                     follower.followPath(line8, true);
+                    PoseStorage.currentPose = follower.getPose();
                     setPathState(-1);
                 }
                 break;
@@ -253,6 +312,7 @@ public class ExampleAuto extends LinearOpMode {
                 if (!follower.isBusy()) {
                     intakeMotor.setPower(0);
                 }
+                break;
 
         }
     }

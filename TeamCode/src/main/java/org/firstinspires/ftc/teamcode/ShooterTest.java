@@ -1,4 +1,5 @@
 package org.firstinspires.ftc.teamcode;
+
 import com.bylazar.configurables.annotations.Configurable;
 import com.bylazar.telemetry.PanelsTelemetry;
 import com.bylazar.telemetry.TelemetryManager;
@@ -7,23 +8,25 @@ import com.pedropathing.geometry.BezierCurve;
 import com.pedropathing.geometry.Pose;
 import com.pedropathing.paths.Path;
 import com.pedropathing.paths.PathChain;
-import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
+import com.qualcomm.robotcore.hardware.DcMotor;
+import com.qualcomm.robotcore.hardware.DcMotorSimple;
+import com.qualcomm.robotcore.hardware.Servo;
+
 import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
+
 import java.util.function.Supplier;
 
 @Configurable
 @TeleOp
-@Disabled
-public class ExampleTeleOp extends OpMode {
+public class ShooterTest extends OpMode {
     private Follower follower;
-
-    public static Pose startingPose_REDGOAL = new Pose(121.64928909952606, 126.93838862559241, Math.toRadians(37)); //See ExampleAuto to understand how to use this
-    public static Pose startingPose_CENTER = new Pose(72.08561236623068, 11.814506539833536, Math.toRadians(90)); //See ExampleAuto to understand how to use this
-
-    public static Pose startingPose = startingPose_CENTER;
-
+    public static Pose startingPose = new Pose(72.08561236623068,11.814506539833536,Math.toRadians(90)); //See ExampleAuto to understand how to use this
+    private DcMotor shooter = null;
+    private Servo servoLeft = null;
+    private Servo servoRight = null;
+    //public static Pose startingPose = new Pose(72.08561236623068,11.814506539833536,Math.toRadians(37)); //See ExampleAuto to understand how to use this
     private boolean automatedDrive;
     private Supplier<PathChain> pathChain;
     private TelemetryManager telemetryM;
@@ -33,6 +36,9 @@ public class ExampleTeleOp extends OpMode {
     @Override
     public void init() {
         follower = Constants.createFollower(hardwareMap);
+        shooter = hardwareMap.dcMotor.get("shooter");
+        servoLeft = hardwareMap.servo.get("servoLeft");
+        servoRight = hardwareMap.servo.get("servoRight");
         follower.setStartingPose(startingPose == null ? new Pose() : startingPose);
         follower.update();
         telemetryM = PanelsTelemetry.INSTANCE.getTelemetry();
@@ -45,6 +51,9 @@ public class ExampleTeleOp extends OpMode {
                 )))
                 .setLinearHeadingInterpolation(Math.toRadians(90), Math.toRadians(140))
                 .build();
+        shooter.setDirection(DcMotorSimple.Direction.REVERSE);
+        servoLeft.setDirection(Servo.Direction.FORWARD);
+        servoRight.setDirection(Servo.Direction.REVERSE);
     }
 
     @Override
@@ -53,9 +62,10 @@ public class ExampleTeleOp extends OpMode {
         //In order to use float mode, add .useBrakeModeInTeleOp(true); to your Drivetrain Constants in Constant.java (for Mecanum)
         //If you don't pass anything in, it uses the default (false)
         follower.startTeleopDrive(true);
+        servoLeft.setPosition(0.1);
+        servoRight.setPosition(0.1);
 
     }
-
 
     @Override
     public void loop() {
@@ -84,10 +94,10 @@ public class ExampleTeleOp extends OpMode {
             );
         }
 
-        //Automated PathFollowing
-        if (gamepad1.aWasPressed()) {
-            follower.followPath(pathChain.get());
-            automatedDrive = true;
+        if(gamepad1.b) {
+            shooter.setPower(0.5);
+        } else {
+            shooter.setPower(0);
         }
 
         //Stop automated following if the follower is done
@@ -96,20 +106,8 @@ public class ExampleTeleOp extends OpMode {
             automatedDrive = false;
         }
 
-        //Slow Mode
-        if (gamepad1.rightBumperWasPressed()) {
-            slowMode = !slowMode;
-        }
 
-        //Optional way to change slow mode strength
-        if (gamepad1.xWasPressed()) {
-            slowModeMultiplier += 0.25;
-        }
 
-        //Optional way to change slow mode strength
-        if (gamepad2.yWasPressed()) {
-            slowModeMultiplier -= 0.25;
-        }
 
         telemetryM.debug("position", follower.getPose());
         telemetryM.debug("heading", follower.getHeading());
